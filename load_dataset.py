@@ -1,31 +1,39 @@
 import torch
-from torch.utils.data import TensorDataset, DataLoader
-
+from torch.utils.data import TensorDataset, DataLoader, random_split
 
 data = torch.load("shapes_dataset.pt", weights_only=False)
 
-images = data["images"]
-labels = data["labels"]
+images = data["images"].float() / 255.0
+labels = data["labels"].long()
 class_names = data["class_names"]
 
 dataset = TensorDataset(images, labels)
-loader = DataLoader(
+
+train_size = int(0.8 * len(dataset))
+validation_size = len(dataset) - train_size
+
+train_dataset, validation_dataset = random_split(
     dataset,
+    [train_size, validation_size],
+    generator=torch.Generator().manual_seed(42),
+)
+
+train_loader = DataLoader(
+    train_dataset,
     batch_size=64,
     shuffle=True,
 )
 
-images_batch, labels_batch = next(iter(loader))
+validation_loader = DataLoader(
+    validation_dataset,
+    batch_size=64,
+    shuffle=False,
+)
 
-if __name__ == '__main__':
+print(images.shape)
+print(images.dtype)
+print(images.min().item(), images.max().item())
 
-
-    print(class_names)
-    # ['circle', 'oval', 'line', 'rectangle', 'square', 'triangle']
-
-    print(images_batch.shape)
-    print(labels_batch.shape)
-
-    # Convert a numeric label back to its shape name.
-    label = labels_batch[0].item()
-    print(class_names[label])
+unique_labels, counts = torch.unique(labels, return_counts=True)
+print(unique_labels)
+print(counts)
