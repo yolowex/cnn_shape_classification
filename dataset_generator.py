@@ -10,7 +10,7 @@ import torch
 from PIL import Image, ImageDraw
 
 
-IMAGE_SIZE = 64
+IMAGE_SIZE = 32
 OUTPUT_FILE = Path.cwd() / "shapes_dataset.pt"
 
 
@@ -29,7 +29,7 @@ def _to_tensor(image: Image.Image) -> torch.Tensor:
 
 def _random_width() -> int:
     """Return a random line thickness."""
-    return random.randint(1, 3)
+    return random.randint(1, 1)
 
 
 def _random_point(margin: float) -> tuple[float, float]:
@@ -270,7 +270,6 @@ def save_dataset(samples_per_shape: int = 10_000) -> None:
             labels.append(label)
 
     dataset = {
-        # Shape: [number_of_samples, 64, 64]
         "images": torch.stack(images),
 
         # Shape: [number_of_samples]
