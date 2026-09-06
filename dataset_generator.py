@@ -194,11 +194,15 @@ def generate_line() -> torch.Tensor:
 
 
 def generate_rectangle() -> torch.Tensor:
-    """Generate a randomly sized and rotated rectangle."""
+    """Generate a randomly sized and rotated rectangle with guaranteed aspect ratio contrast."""
     width = _random_width()
 
-    rectangle_width = random.uniform(8.0, 20.0)
-    rectangle_height = random.uniform(6.0, 18.0)
+    while True:
+        rectangle_width = random.uniform(8.0, 20.0)
+        rectangle_height = random.uniform(6.0, 18.0)
+        # Guarantee a clear difference so it cannot look like a square
+        if abs(rectangle_width - rectangle_height) >= 4.0:
+            break
 
     half_width = rectangle_width / 2
     half_height = rectangle_height / 2

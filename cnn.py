@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 from torch import nn
 
@@ -176,11 +178,31 @@ def train(model, train_loader, validation_loader):
         patience=3,
     )
 
+    checkpoint_path = "best_model.pt"
+    start_epoch = 0
     best_validation_accuracy = -1.0
     best_epoch = 0
-    checkpoint_path = "best_model.pt"
 
-    for epoch in range(EPOCHS):
+    # ---------- RESUME FROM CHECKPOINT ----------
+    if Path(checkpoint_path).exists():
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=DEVICE,
+            weights_only=False,
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        start_epoch = checkpoint["epoch"]
+        best_validation_accuracy = checkpoint["validation_accuracy"]
+        best_epoch = checkpoint["epoch"]
+
+        print(f"Resumed from epoch {start_epoch}")
+        print(f"Previous best validation accuracy: {best_validation_accuracy:.4f}")
+    # --------------------------------------------
+
+    for epoch in range(start_epoch, EPOCHS):   # ← change this line
         train_loss, train_accuracy = train_one_epoch(
             model,
             train_loader,
