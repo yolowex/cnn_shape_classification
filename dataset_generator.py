@@ -13,18 +13,60 @@ from PIL import Image, ImageDraw
 IMAGE_SIZE = 32
 OUTPUT_FILE = Path.cwd() / "shapes_dataset.pt"
 
+# Small per-pixel variation added on top of each image's base colors.
+NOISE_STD = 5.0
 
-def _new_canvas() -> Image.Image:
-    """Create a white grayscale PIL image."""
-    return Image.new("L", (IMAGE_SIZE, IMAGE_SIZE), color=255)
+# Keep the background and shape visibly distinct.
+MIN_CONTRAST = 64
+
+
+def _random_gray_colors() -> tuple[int, int]:
+    """Return a random background and contrasting shape grayscale value."""
+    background = random.randint(0, 255)
+
+    min_shape = max(0, background - 255)
+    max_shape = min(255, background + 255)
+
+    possible_values = [
+        value
+        for value in range(min_shape, max_shape + 1)
+        if abs(value - background) >= MIN_CONTRAST
+    ]
+
+    shape = random.choice(possible_values)
+
+    return background, shape
+
+
+def _new_canvas() -> tuple[Image.Image, int]:
+    """Create a grayscale image with a random background color."""
+    background, shape = _random_gray_colors()
+
+    image = Image.new(
+        "L",
+        (IMAGE_SIZE, IMAGE_SIZE),
+        color=background,
+    )
+
+    return image, shape
 
 
 def _to_tensor(image: Image.Image) -> torch.Tensor:
-    """Convert a PIL image to a uint8 tensor with shape [64, 64]."""
-    return torch.frombuffer(
+    """Convert a PIL image to a uint8 tensor with shape [IMAGE_SIZE, IMAGE_SIZE]."""
+    tensor = torch.frombuffer(
         bytearray(image.tobytes()),
         dtype=torch.uint8,
     ).reshape(IMAGE_SIZE, IMAGE_SIZE).clone()
+
+    noise = torch.normal(
+        mean=0.0,
+        std=NOISE_STD,
+        size=tensor.shape,
+    )
+
+    noisy_tensor = tensor.to(torch.float32) + noise
+
+    return noisy_tensor.clamp(0, 255).to(torch.uint8)
 
 
 def _random_width() -> int:
@@ -88,7 +130,7 @@ def _generate_rotated_polygon(
     width: int,
 ) -> torch.Tensor:
     """Draw a rotated polygon fully inside the image."""
-    image = _new_canvas()
+    image, shape_color = _new_canvas()
     draw = ImageDraw.Draw(image)
 
     angle = random.uniform(0, 2 * math.pi)
@@ -102,7 +144,7 @@ def _generate_rotated_polygon(
 
     draw.line(
         placed_points + [placed_points[0]],
-        fill=0,
+        fill=shape_color,
         width=width,
         joint="curve",
     )
@@ -111,8 +153,8 @@ def _generate_rotated_polygon(
 
 
 def generate_circle() -> torch.Tensor:
-    """Generate a randomly sized black circle."""
-    image = _new_canvas()
+    """Generate a randomly sized circle with random grayscale colors."""
+    image, shape_color = _new_canvas()
     draw = ImageDraw.Draw(image)
 
     width = _random_width()
@@ -141,7 +183,7 @@ def generate_circle() -> torch.Tensor:
 
     draw.ellipse(
         bbox,
-        outline=0,
+        outline=shape_color,
         width=width,
     )
 
@@ -172,7 +214,7 @@ def generate_oval() -> torch.Tensor:
 
 def generate_line() -> torch.Tensor:
     """Generate a random line fully inside the image."""
-    image = _new_canvas()
+    image, shape_color = _new_canvas()
     draw = ImageDraw.Draw(image)
 
     width = _random_width()
@@ -186,7 +228,7 @@ def generate_line() -> torch.Tensor:
             (round(x1), round(y1)),
             (round(x2), round(y2)),
         ],
-        fill=0,
+        fill=shape_color,
         width=width,
     )
 
@@ -194,13 +236,13 @@ def generate_line() -> torch.Tensor:
 
 
 def generate_rectangle() -> torch.Tensor:
-    """Generate a randomly sized and rotated rectangle with guaranteed aspect ratio contrast."""
+    """Generate a randomly sized and rotated rectangle."""
     width = _random_width()
 
     while True:
         rectangle_width = random.uniform(8.0, 20.0)
         rectangle_height = random.uniform(6.0, 18.0)
-        # Guarantee a clear difference so it cannot look like a square
+
         if abs(rectangle_width - rectangle_height) >= 4.0:
             break
 
@@ -252,7 +294,6 @@ def generate_triangle() -> torch.Tensor:
 
 def save_dataset(samples_per_shape: int = 10_000) -> None:
     """Generate all samples and save them into one PyTorch file."""
-
     generators = {
         "circle": generate_circle,
         "oval": generate_oval,
@@ -275,11 +316,7 @@ def save_dataset(samples_per_shape: int = 10_000) -> None:
 
     dataset = {
         "images": torch.stack(images),
-
-        # Shape: [number_of_samples]
         "labels": torch.tensor(labels, dtype=torch.long),
-
-        # Integer-to-name mapping
         "class_names": class_names,
     }
 
