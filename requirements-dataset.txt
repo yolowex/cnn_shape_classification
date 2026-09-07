@@ -1,0 +1,5 @@
+# For generating and viewing the shapes dataset
+# (dataset_generator.py, show_dataset.py)
+torch
+Pillow
+matplotlib

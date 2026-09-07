@@ -1,0 +1,3 @@
+# For training and evaluating the classifier
+# (network.py, cnn.py, load_dataset.py, multiclass_test.py)
+torch
