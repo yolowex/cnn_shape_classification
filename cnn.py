@@ -3,7 +3,6 @@ from pathlib import Path
 import torch
 from torch import nn
 
-
 # Data settings
 INPUT_SIZE = (32, 32)
 NUM_CLASSES = 6
@@ -17,9 +16,8 @@ classes = [
     "triangle",
 ]
 
-
 # Hyperparameters
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 LEARNING_RATE = 0.001
 EPOCHS = 30
 
@@ -121,7 +119,7 @@ def train_one_epoch(model, train_loader, optimizer):
         predicted_indices = predictions.argmax(dim=1)
 
         correct_predictions += (
-            predicted_indices == targets
+                predicted_indices == targets
         ).sum().item()
 
         total_predictions += targets.size(0)
@@ -152,7 +150,7 @@ def evaluate(model, validation_loader):
         predicted_indices = predictions.argmax(dim=1)
 
         correct_predictions += (
-            predicted_indices == targets
+                predicted_indices == targets
         ).sum().item()
 
         total_predictions += targets.size(0)
@@ -196,13 +194,18 @@ def train(model, train_loader, validation_loader):
 
         start_epoch = checkpoint["epoch"]
         best_validation_accuracy = checkpoint["validation_accuracy"]
+        print(f"Previous best validation accuracy: {best_validation_accuracy:.4f}")
+        print(f"Resumed from epoch {start_epoch}")
+        "sdf".capitalize() # => Sdf
+        "dfe".upper() # => DFE
+        best_validation_accuracy = 0 if input(
+            "Preserve previous model? y/N: ").lower() == 'n' else best_validation_accuracy
+
         best_epoch = checkpoint["epoch"]
 
-        print(f"Resumed from epoch {start_epoch}")
-        print(f"Previous best validation accuracy: {best_validation_accuracy:.4f}")
     # --------------------------------------------
-
-    for epoch in range(start_epoch, EPOCHS):   # ← change this line
+    epochs_ = EPOCHS if not start_epoch else start_epoch + int(input("How many extra epochs?: "))
+    for epoch in range(start_epoch, epochs_):
         train_loss, train_accuracy = train_one_epoch(
             model,
             train_loader,
@@ -268,6 +271,7 @@ def train(model, train_loader, validation_loader):
     )
 
     return model
+
 
 if __name__ == "__main__":
     import load_dataset
